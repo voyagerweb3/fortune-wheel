@@ -1,0 +1,2 @@
+# fortune-wheel
+bot tg
