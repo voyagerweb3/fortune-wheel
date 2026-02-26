@@ -6,7 +6,7 @@
 <title>Колесо Фортуны</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -393,13 +393,17 @@ function drawWheel(highlightIndex = -1) {
     ctx.translate(cx, cy);
     ctx.rotate(sectorMid);
     ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f0ede8';
-    ctx.font = `bold ${n > 8 ? 10 : 12}px Inter`;
-    ctx.shadowColor = 'rgba(0,0,0,0.9)';
-    ctx.shadowBlur = 4;
-    const maxLen = 14;
+    const fontSize = n > 8 ? 10 : 12;
+    ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
+    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    const maxLen = n > 8 ? 12 : 14;
     const label = item.length > maxLen ? item.slice(0, maxLen) + '…' : item;
-    ctx.fillText(label, r - 12, 5);
+    ctx.fillText(label, r - 14, 0);
     ctx.restore();
   });
 
@@ -575,7 +579,7 @@ if (window.Telegram?.WebApp) {
   Telegram.WebApp.expand();
 }
 
-renderOptions();
+document.fonts.ready.then(() => renderOptions());
 </script>
 </body>
 </html>
