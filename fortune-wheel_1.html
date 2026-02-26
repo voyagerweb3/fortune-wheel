@@ -278,6 +278,55 @@ function playTick(volume = 1) {
   } catch(e) {}
 }
 
+// ---- Spinning sound (oscillator that slows with wheel) ----
+let spinOsc = null;
+let spinGainNode = null;
+
+function startSpinSound() {
+  try {
+    const ctx = getAudioCtx();
+    spinOsc = ctx.createOscillator();
+    spinGainNode = ctx.createGain();
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 350;
+    filter.Q.value = 1.5;
+
+    spinOsc.type = 'sawtooth';
+    spinOsc.frequency.value = 250;
+    spinGainNode.gain.value = 0;
+
+    spinOsc.connect(filter);
+    filter.connect(spinGainNode);
+    spinGainNode.connect(ctx.destination);
+    spinOsc.start();
+    spinGainNode.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.12);
+  } catch(e) {}
+}
+
+function updateSpinSound(speed) {
+  // speed: 1 (max) → 0 (stopped), proportional to angular velocity
+  if (!spinOsc || !spinGainNode) return;
+  try {
+    const ctx = getAudioCtx();
+    spinOsc.frequency.setTargetAtTime(20 + speed * 230, ctx.currentTime, 0.08);
+    spinGainNode.gain.setTargetAtTime(speed * 0.1, ctx.currentTime, 0.08);
+  } catch(e) {}
+}
+
+function stopSpinSound() {
+  if (!spinOsc) return;
+  try {
+    const ctx = getAudioCtx();
+    if (spinGainNode) spinGainNode.gain.setTargetAtTime(0, ctx.currentTime, 0.35);
+    const oscRef = spinOsc;
+    spinOsc = null;
+    spinGainNode = null;
+    setTimeout(() => { try { oscRef.stop(); } catch(e) {} }, 1500);
+  } catch(e) {}
+}
+
 function playWin() {
   try {
     const ctx = getAudioCtx();
@@ -369,22 +418,29 @@ function drawWheel(highlightIndex = -1) {
 }
 
 // ---- Winner ----
-// Pointer is at the TOP = angle -PI/2 in canvas (or equivalently, angle pointing "up").
+// Pointer is at the TOP = angle -PI/2 in canvas (3PI/2 when normalized to [0,2PI)).
 // Sector i has its middle at wheelAngle + i*arc.
-// The sector pointing UP is the one whose middle is closest to -PI/2 (mod 2PI).
-// Equivalently: find i where (wheelAngle + i*arc) mod 2PI is closest to -PI/2 mod 2PI = 3PI/2.
+// Find the sector whose midpoint has the smallest angular distance to the pointer.
 function getWinnerIndex(items) {
   const n = items.length;
   const arc = (2 * Math.PI) / n;
-  // Pointer direction in canvas: -PI/2 (up)
-  // We want sector i where mid = wheelAngle + i*arc ≡ -PI/2 (mod 2PI)
-  // i*arc ≡ -PI/2 - wheelAngle (mod 2PI)
-  // i ≡ (-PI/2 - wheelAngle) / arc (mod n)
-  let target = (-Math.PI / 2 - wheelAngle);
-  // Normalize to [0, 2PI)
-  target = ((target % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-  const idx = Math.round(target / arc) % n;
-  return (idx + n) % n;
+  const TAU = 2 * Math.PI;
+  const pointerAngle = 3 * Math.PI / 2; // -PI/2 normalized to [0, 2PI)
+
+  let bestIdx = 0;
+  let bestDist = Infinity;
+
+  for (let i = 0; i < n; i++) {
+    const mid = ((wheelAngle + i * arc) % TAU + TAU) % TAU;
+    let dist = Math.abs(mid - pointerAngle);
+    if (dist > Math.PI) dist = TAU - dist; // shortest arc distance
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = i;
+    }
+  }
+
+  return bestIdx;
 }
 
 // ---- Spin ----
@@ -394,6 +450,7 @@ function spin() {
   if (items.length < 2) return;
 
   try { getAudioCtx().resume(); } catch(e) {}
+  startSpinSound();
 
   spinning = true;
   document.getElementById('spinBtn').disabled = true;
@@ -417,12 +474,15 @@ function spin() {
     const eased = easeOut(t);
     wheelAngle = startAngle + totalRotation * eased;
 
+    // Normalized speed: 1 at start, 0 at finish (tracks angular velocity)
+    const normalizedSpeed = Math.pow(1 - t, 3);
+    updateSpinSound(normalizedSpeed);
+
     // Tick on each sector boundary
     const rotated = Math.abs(totalRotation * eased);
     const tickCount = Math.floor(rotated / arc);
     if (tickCount > lastTickCount) {
-      const speed = 1 - t;
-      playTick(0.2 + speed * 0.8);
+      playTick(0.2 + normalizedSpeed * 0.8);
       lastTickCount = tickCount;
     }
 
@@ -431,7 +491,11 @@ function spin() {
     if (t < 1) {
       requestAnimationFrame(animate);
     } else {
+      stopSpinSound();
       wheelAngle = startAngle + totalRotation;
+      // Normalize to [0, 2π) to avoid floating-point accumulation over many spins
+      const TAU = 2 * Math.PI;
+      wheelAngle = ((wheelAngle % TAU) + TAU) % TAU;
       const winIdx = getWinnerIndex(items);
       drawWheel(winIdx);
       showResult(items[winIdx]);
@@ -445,7 +509,11 @@ function spin() {
 
 function showResult(winner) {
   const box = document.getElementById('resultBox');
-  box.innerHTML = `<span class="result-text result-win">🎯 ${winner}</span>`;
+  box.innerHTML = '';
+  const span = document.createElement('span');
+  span.className = 'result-text result-win';
+  span.textContent = '🎯 ' + winner;
+  box.appendChild(span);
   playWin();
   launchConfetti();
   if (window.Telegram?.WebApp) {
