@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Колесо Фортуны</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #1e1e2e;
+    --accent: #c9a96e;
+    --accent2: #e8c88a;
+    --text: #f0ede8;
+    --muted: #6b6880;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 32px;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  .wheel-wrapper {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    margin: 0 auto 24px;
+  }
+
+  canvas {
+    border-radius: 50%;
+    box-shadow: 0 0 60px rgba(201,169,110,0.15), 0 0 0 2px var(--border);
+  }
+
+  .pointer {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-top: 22px solid var(--accent);
+    filter: drop-shadow(0 2px 8px rgba(201,169,110,0.6));
+    z-index: 10;
+  }
+
+  .result-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 20px;
+    text-align: center;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 340px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .result-text {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent2);
+    line-height: 1.4;
+  }
+
+  .result-placeholder { font-size: 13px; color: var(--muted); }
+
+  .spin-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #0a0a0f;
+    border: none;
+    border-radius: 14px;
+    padding: 14px 40px;
+    font-family: 'Unbounded', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    max-width: 340px;
+    margin-bottom: 24px;
+    letter-spacing: 0.5px;
+    transition: opacity 0.2s, transform 0.1s;
+    box-shadow: 0 4px 24px rgba(201,169,110,0.3);
+  }
+
+  .spin-btn:active { transform: scale(0.97); }
+  .spin-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .section-title {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    width: 100%;
+    max-width: 340px;
+  }
+
+  .options-list {
+    width: 100%;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .option-row { display: flex; gap: 8px; align-items: center; }
+
+  .option-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .option-input:focus { border-color: var(--accent); }
+  .option-input::placeholder { color: var(--muted); }
+
+  .remove-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    color: var(--muted);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .remove-btn:hover { border-color: #ff5555; color: #ff5555; }
+
+  .add-btn {
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    width: 100%;
+    max-width: 340px;
+    transition: all 0.2s;
+    margin-bottom: 20px;
+  }
+
+  .add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  @keyframes pop {
+    0% { transform: scale(0.8); opacity: 0; }
+    60% { transform: scale(1.05); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .result-win { animation: pop 0.5s ease forwards; }
+
+  .confetti-piece {
+    position: fixed;
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 999;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🎡 Колесо Фортуны</h1>
+<p class="subtitle">Введи варианты и доверься судьбе</p>
+
+<div class="wheel-wrapper">
+  <div class="pointer"></div>
+  <canvas id="wheel" width="300" height="300"></canvas>
+</div>
+
+<div class="result-box" id="resultBox">
+  <span class="result-placeholder">Крути колесо — узнаешь ответ</span>
+</div>
+
+<button class="spin-btn" id="spinBtn" onclick="spin()">КРУТИТЬ</button>
+
+<p class="section-title">Твои варианты</p>
+<div class="options-list" id="optionsList"></div>
+<button class="add-btn" onclick="addOption()">+ Добавить вариант</button>
+
+<script>
+const COLORS = [
+  '#c9a96e','#2a2a3a','#e8c88a','#1a1a28',
+  '#b8956a','#222232','#d4aa7a','#161624',
+  '#a07850','#1e1e2e','#cc9966','#181826'
+];
+
+let options = ['Пицца 🍕', 'Суши 🍣', 'Бургер 🍔', 'Дома поем 🏠'];
+let spinning = false;
+let wheelAngle = 0; // total rotation of the wheel (radians)
+
+// ---- Audio ----
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playTick(volume = 1) {
+  try {
+    const ctx = getAudioCtx();
+    const sampleRate = ctx.sampleRate;
+    const buf = ctx.createBuffer(1, Math.floor(sampleRate * 0.04), sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (sampleRate * 0.006));
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const gain = ctx.createGain();
+    gain.gain.value = Math.min(volume, 1) * 0.5;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 1400;
+    filter.Q.value = 1;
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    src.start();
+  } catch(e) {}
+}
+
+// ---- Spinning sound (oscillator that slows with wheel) ----
+let spinOsc = null;
+let spinGainNode = null;
+
+function startSpinSound() {
+  try {
+    const ctx = getAudioCtx();
+    spinOsc = ctx.createOscillator();
+    spinGainNode = ctx.createGain();
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 350;
+    filter.Q.value = 1.5;
+
+    spinOsc.type = 'sawtooth';
+    spinOsc.frequency.value = 250;
+    spinGainNode.gain.value = 0;
+
+    spinOsc.connect(filter);
+    filter.connect(spinGainNode);
+    spinGainNode.connect(ctx.destination);
+    spinOsc.start();
+    spinGainNode.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.12);
+  } catch(e) {}
+}
+
+function updateSpinSound(speed) {
+  // speed: 1 (max) → 0 (stopped), proportional to angular velocity
+  if (!spinOsc || !spinGainNode) return;
+  try {
+    const ctx = getAudioCtx();
+    spinOsc.frequency.setTargetAtTime(20 + speed * 230, ctx.currentTime, 0.08);
+    spinGainNode.gain.setTargetAtTime(speed * 0.1, ctx.currentTime, 0.08);
+  } catch(e) {}
+}
+
+function stopSpinSound() {
+  if (!spinOsc) return;
+  try {
+    const ctx = getAudioCtx();
+    if (spinGainNode) spinGainNode.gain.setTargetAtTime(0, ctx.currentTime, 0.35);
+    const oscRef = spinOsc;
+    spinOsc = null;
+    spinGainNode = null;
+    setTimeout(() => { try { oscRef.stop(); } catch(e) {} }, 1500);
+  } catch(e) {}
+}
+
+function playWin() {
+  try {
+    const ctx = getAudioCtx();
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + i * 0.13;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.28, t + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.55);
+    });
+  } catch(e) {}
+}
+
+// ---- Draw ----
+function drawWheel(highlightIndex = -1) {
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  const cx = 150, cy = 150, r = 148;
+  const items = options.filter(o => o.trim());
+  if (!items.length) return;
+  const n = items.length;
+  const arc = (2 * Math.PI) / n;
+
+  ctx.clearRect(0, 0, 300, 300);
+
+  items.forEach((item, i) => {
+    // Sector starts: we place sector 0 so its middle points UP (to pointer).
+    // Middle of sector i = wheelAngle + i*arc
+    // Start of sector i = wheelAngle + i*arc - arc/2
+    const sectorMid = wheelAngle + i * arc;
+    const start = sectorMid - arc / 2;
+    const end = sectorMid + arc / 2;
+
+    // Draw slice
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = COLORS[i % COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = '#0a0a0f';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Highlight winner
+    if (i === highlightIndex) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, start, end);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(201,169,110,0.3)';
+      ctx.fill();
+    }
+
+    // Text along radius at sector midpoint
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(sectorMid);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#f0ede8';
+    ctx.font = `bold ${n > 8 ? 10 : 12}px Inter`;
+    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    ctx.shadowBlur = 4;
+    const maxLen = 14;
+    const label = item.length > maxLen ? item.slice(0, maxLen) + '…' : item;
+    ctx.fillText(label, r - 12, 5);
+    ctx.restore();
+  });
+
+  // Center circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, 22, 0, 2 * Math.PI);
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fill();
+  ctx.strokeStyle = '#c9a96e';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
+  ctx.fillStyle = '#c9a96e';
+  ctx.fill();
+}
+
+// ---- Winner ----
+// Pointer is at the TOP = angle -PI/2 in canvas (3PI/2 when normalized to [0,2PI)).
+// Sector i has its middle at wheelAngle + i*arc.
+// Find the sector whose midpoint has the smallest angular distance to the pointer.
+function getWinnerIndex(items) {
+  const n = items.length;
+  const arc = (2 * Math.PI) / n;
+  const TAU = 2 * Math.PI;
+  const pointerAngle = 3 * Math.PI / 2; // -PI/2 normalized to [0, 2PI)
+
+  let bestIdx = 0;
+  let bestDist = Infinity;
+
+  for (let i = 0; i < n; i++) {
+    const mid = ((wheelAngle + i * arc) % TAU + TAU) % TAU;
+    let dist = Math.abs(mid - pointerAngle);
+    if (dist > Math.PI) dist = TAU - dist; // shortest arc distance
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = i;
+    }
+  }
+
+  return bestIdx;
+}
+
+// ---- Spin ----
+function spin() {
+  if (spinning) return;
+  const items = options.filter(o => o.trim());
+  if (items.length < 2) return;
+
+  try { getAudioCtx().resume(); } catch(e) {}
+  startSpinSound();
+
+  spinning = true;
+  document.getElementById('spinBtn').disabled = true;
+  document.getElementById('resultBox').innerHTML = '<span class="result-placeholder">Судьба решает...</span>';
+
+  const extraSpins = 5 + Math.floor(Math.random() * 5);
+  const randomExtra = Math.random() * 2 * Math.PI;
+  const totalRotation = -(extraSpins * 2 * Math.PI + randomExtra); // negative = clockwise in canvas
+  const duration = 4000 + Math.random() * 1000;
+  const startTime = performance.now();
+  const startAngle = wheelAngle;
+
+  const arc = (2 * Math.PI) / items.length;
+  let lastTickCount = 0;
+
+  function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+  function animate(now) {
+    const elapsed = now - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    const eased = easeOut(t);
+    wheelAngle = startAngle + totalRotation * eased;
+
+    // Normalized speed: 1 at start, 0 at finish (tracks angular velocity)
+    const normalizedSpeed = Math.pow(1 - t, 3);
+    updateSpinSound(normalizedSpeed);
+
+    // Tick on each sector boundary
+    const rotated = Math.abs(totalRotation * eased);
+    const tickCount = Math.floor(rotated / arc);
+    if (tickCount > lastTickCount) {
+      playTick(0.2 + normalizedSpeed * 0.8);
+      lastTickCount = tickCount;
+    }
+
+    drawWheel();
+
+    if (t < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      stopSpinSound();
+      wheelAngle = startAngle + totalRotation;
+      // Normalize to [0, 2π) to avoid floating-point accumulation over many spins
+      const TAU = 2 * Math.PI;
+      wheelAngle = ((wheelAngle % TAU) + TAU) % TAU;
+      const winIdx = getWinnerIndex(items);
+      drawWheel(winIdx);
+      showResult(items[winIdx]);
+      spinning = false;
+      document.getElementById('spinBtn').disabled = false;
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function showResult(winner) {
+  const box = document.getElementById('resultBox');
+  box.innerHTML = '';
+  const span = document.createElement('span');
+  span.className = 'result-text result-win';
+  span.textContent = '🎯 ' + winner;
+  box.appendChild(span);
+  playWin();
+  launchConfetti();
+  if (window.Telegram?.WebApp) {
+    Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+  }
+}
+
+function launchConfetti() {
+  const colors = ['#c9a96e','#e8c88a','#ffffff','#ffd700','#ff9944'];
+  for (let i = 0; i < 40; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.top = '-10px';
+      el.style.background = colors[Math.floor(Math.random() * colors.length)];
+      el.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }, i * 40);
+  }
+}
+
+// ---- Options UI ----
+function renderOptions() {
+  const list = document.getElementById('optionsList');
+  list.innerHTML = '';
+  options.forEach((opt, i) => {
+    const row = document.createElement('div');
+    row.className = 'option-row';
+    const safeVal = opt.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    row.innerHTML = `
+      <input class="option-input" type="text" value="${safeVal}"
+        placeholder="Вариант ${i+1}"
+        oninput="options[${i}] = this.value; drawWheel()"
+        onkeydown="if(event.key==='Enter') this.blur()">
+      <button class="remove-btn" onclick="removeOption(${i})">×</button>
+    `;
+    list.appendChild(row);
+  });
+  drawWheel();
+}
+
+function addOption() {
+  if (options.length >= 12) return;
+  options.push('');
+  renderOptions();
+  document.querySelectorAll('.option-input')[options.length - 1].focus();
+}
+
+function removeOption(i) {
+  if (options.length <= 2) return;
+  options.splice(i, 1);
+  renderOptions();
+}
+
+if (window.Telegram?.WebApp) {
+  Telegram.WebApp.ready();
+  Telegram.WebApp.expand();
+}
+
+renderOptions();
+</script>
+</body>
+</html>
