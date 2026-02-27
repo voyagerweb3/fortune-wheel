@@ -1,0 +1,24 @@
+# systemd unit file — place in /etc/systemd/system/pomodoro.service
+# Then: systemctl enable --now pomodoro
+
+[Unit]
+Description=Pomodoro Telegram Focus-Timer Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# ← change to your actual user and path
+User=ubuntu
+WorkingDirectory=/home/ubuntu/fortune-wheel/pomodoro_bot
+EnvironmentFile=/home/ubuntu/fortune-wheel/pomodoro_bot/.env
+ExecStart=/home/ubuntu/fortune-wheel/pomodoro_bot/venv/bin/python bot.py
+Restart=on-failure
+RestartSec=10
+
+# Logs: journalctl -u pomodoro -f
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
